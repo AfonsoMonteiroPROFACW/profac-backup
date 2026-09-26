@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { storage } from './storage';
+import { getBaseUrl } from './config';
 
 interface EmailParams {
   to: string;
@@ -260,7 +261,7 @@ IMPORTANTE:
 - Por segurança, você será solicitado a criar uma nova senha assim que acessar o sistema
 - Esta senha temporária expira em 24 horas
 
-Para acessar o sistema, visite: ${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS}` : 'http://localhost:5000'}/auth
+Para acessar o sistema, visite: ${getBaseUrl()}/auth
 
 Se você não solicitou esta alteração, entre em contato conosco imediatamente.
 
@@ -300,7 +301,7 @@ Equipe PROFAC
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS}` : 'http://localhost:5000'}/auth" 
+      <a href="${getBaseUrl()}/auth" 
          style="background-color: #1e40af; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Acessar Sistema
       </a>

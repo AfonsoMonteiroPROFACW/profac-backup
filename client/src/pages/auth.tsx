@@ -123,8 +123,8 @@ export default function AuthPage() {
     }
     
     loginMutation.mutate(data, {
-      onSuccess: (response) => {
-        const user = response.user || response;
+      onSuccess: (response: any) => {
+        const user = response?.user || response;
         console.log("Login successful, user:", user);
         console.log("User role:", user.role);
         console.log("User email:", user.email);

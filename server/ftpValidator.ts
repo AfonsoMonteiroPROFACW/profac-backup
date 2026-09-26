@@ -1,4 +1,5 @@
 import { Client } from 'basic-ftp';
+import { Readable } from 'stream';
 import type { InsertFtpConfig } from '@shared/schema';
 
 interface FtpValidationResult {
@@ -102,7 +103,7 @@ export class FtpValidator {
         const testContent = Buffer.from('PROFAC FTP Test File');
         const testFileName = `profac_test_${Date.now()}.tmp`;
         
-        await client.uploadFrom(Buffer.from(testContent), testFileName);
+        await client.uploadFrom(Readable.from(testContent), testFileName);
         await client.remove(testFileName);
         console.log('✅ Permissões de escrita confirmadas');
       } catch (e) {

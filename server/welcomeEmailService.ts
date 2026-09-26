@@ -1,4 +1,5 @@
 import { sendEmail } from './emailService';
+import { getBaseUrl } from './config';
 
 interface WelcomeEmailData {
   userEmail: string;
@@ -141,7 +142,7 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean>
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://profac.replit.app/login" class="cta-button">
+            <a href="${getBaseUrl()}/login" class="cta-button">
               🔐 Acessar Sistema
             </a>
           </div>
@@ -195,7 +196,7 @@ O QUE VOCÊ PODE FAZER AGORA:
 
 ACESSO:
 Use o email ${userEmail} para fazer login em:
-https://profac.replit.app/login
+${getBaseUrl()}/login
 
 SUPORTE:
 • Email: contato@profac.com.br

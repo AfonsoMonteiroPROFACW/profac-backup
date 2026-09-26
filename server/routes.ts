@@ -26,6 +26,7 @@ import { FtpValidator } from "./ftpValidator";
 import { FtpHealthMonitor } from "./ftpHealthMonitor";
 import { Client } from 'basic-ftp';
 import { validateEmailSetup, sendTestEmail } from './emailValidator';
+import { getBaseUrl } from "./config";
 
 // Simple session middleware
 function requireAuth(req: any, res: any, next: any) {
@@ -1016,7 +1017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           version: download.version,
           fileName: download.fileName,
           description: download.description || '',
-          downloadUrl: `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS}` : 'http://localhost:5000'}/#downloads`
+          downloadUrl: `${getBaseUrl()}/#downloads`
         });
         
         if (notificationResult.success) {

@@ -941,7 +941,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`count(*) desc`)
       .limit(50);
 
-    return result.map(r => ({
+    return result.map((r: any) => ({
       country: r.country,
       region: r.region,
       city: r.city,
@@ -971,7 +971,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalViews: totalResult[0]?.totalViews || 0,
       uniqueVisitors: totalResult[0]?.uniqueVisitors || 0,
-      dailySeries: dailyResult.map(r => ({
+      dailySeries: dailyResult.map((r: any) => ({
         date: r.date,
         views: r.views,
         uniqueVisitors: r.uniqueVisitors,
@@ -992,7 +992,7 @@ export class DatabaseStorage implements IStorage {
       .groupBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM')`)
       .orderBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM')`);
 
-    return result.map(r => ({
+    return result.map((r: any) => ({
       month: r.month,
       views: r.views,
       uniqueVisitors: r.uniqueVisitors,
@@ -1012,7 +1012,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`count(*) desc`)
       .limit(limit);
 
-    return result.map(r => ({ path: r.path, views: r.views }));
+    return result.map((r: any) => ({ path: r.path, views: r.views }));
   }
 
   async getAnalyticsToday(): Promise<{ views: number; uniqueVisitors: number }> {

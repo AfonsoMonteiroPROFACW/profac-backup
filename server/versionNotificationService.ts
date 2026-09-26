@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { sendEmail } from './emailService';
+import { getBaseUrl } from './config';
 import type { User } from '@shared/schema';
 
 interface NotificationResult {
@@ -128,11 +129,7 @@ export interface VersionNotificationData {
 
 // Função utilitária para criar URL de download baseada no ID do download
 export function createDownloadUrl(downloadId: number, fileName: string): string {
-  // Em ambiente de desenvolvimento, usar uma URL local
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://your-domain.com' 
-    : 'http://localhost:5000';
-    
+  const baseUrl = getBaseUrl();
   return `${baseUrl}/api/downloads/${downloadId}/file`;
 }
 

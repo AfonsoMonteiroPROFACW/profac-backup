@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: profac-site
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: APP_URL
+        value: https://profac.com.br
+      - key: DATABASE_URL
+        sync: false
