@@ -175,7 +175,7 @@ export default function AboutPage() {
               </div>
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-white">Banco de Dados</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-300">PostgreSQL</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">MySQL</p>
               </div>
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <h4 className="font-semibold text-gray-900 dark:text-white">Segurança</h4>
