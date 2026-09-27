@@ -1,33 +1,42 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb, varchar } from "drizzle-orm/pg-core";
+import { 
+  mysqlTable, 
+  text, 
+  int, 
+  boolean, 
+  timestamp, 
+  decimal, 
+  json, 
+  varchar 
+} from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
+export const users = mysqlTable("users", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
   password: text("password").notNull(),
   fullName: text("full_name").notNull(),
-  cnpj: text("cnpj").notNull(),
+  cnpj: varchar("cnpj", { length: 20 }).notNull(),
   companyName: text("company_name").notNull(),
   phone: text("phone"),
   status: text("status").notNull().default("pending"), // pending, approved, blocked
   role: text("role").notNull().default("user"), // user, admin
   requirePasswordChange: boolean("require_password_change").notNull().default(false),
   lastLogin: timestamp("last_login"),
-  loginCount: integer("login_count").default(0),
+  loginCount: int("login_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Tabela detalhada de clientes para gestão administrativa
-export const clients = pgTable("clients", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  cnpj: text("cnpj").unique(),
-  cpf: text("cpf").unique(),
+export const clients = mysqlTable("clients", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
+  cnpj: varchar("cnpj", { length: 20 }).unique(),
+  cpf: varchar("cpf", { length: 20 }).unique(),
   legalName: text("legal_name"), // Razão social
   tradeName: text("trade_name"), // Nome fantasia
-  clientType: text("client_type").notNull().default("pj"), // "pj" (pessoa jurídica) ou "pf" (pessoa física)
+  clientType: varchar("client_type", { length: 10 }).notNull().default("pj"), // "pj" ou "pf"
   phone: text("phone"),
   mobile: text("mobile"),
   website: text("website"),
@@ -44,11 +53,11 @@ export const clients = pgTable("clients", {
   // Informações comerciais
   monthlyRevenue: decimal("monthly_revenue", { precision: 15, scale: 2 }),
   creditLimit: decimal("credit_limit", { precision: 15, scale: 2 }),
-  riskRating: text("risk_rating").default("medium"), // "low", "medium", "high"
+  riskRating: text("risk_rating").default("medium"),
   accountManager: text("account_manager"),
   
   // Status e datas
-  status: text("status").notNull().default("active"), // "active", "inactive", "suspended"
+  status: text("status").notNull().default("active"),
   contractStartDate: timestamp("contract_start_date"),
   lastOperationDate: timestamp("last_operation_date"),
   notes: text("notes"),
@@ -57,41 +66,41 @@ export const clients = pgTable("clients", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const downloads = pgTable("downloads", {
-  id: serial("id").primaryKey(),
+export const downloads = mysqlTable("downloads", {
+  id: int("id").autoincrement().primaryKey(),
   version: text("version").notNull(),
   fileName: text("file_name").notNull(),
   fileSize: text("file_size").notNull(),
   releaseDate: timestamp("release_date").notNull(),
-  downloadCount: integer("download_count").default(0),
+  downloadCount: int("download_count").default(0),
   isActive: boolean("is_active").default(true),
   isBeta: boolean("is_beta").default(false),
   description: text("description"),
   changeLog: text("change_log"),
 });
 
-export const comments = pgTable("comments", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+export const comments = mysqlTable("comments", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
   name: text("name").notNull(),
   companyName: text("company_name").notNull(),
-  rating: integer("rating").notNull(),
+  rating: int("rating").notNull(),
   content: text("content").notNull(),
   isApproved: boolean("is_approved").default(false),
-  isRenewed: boolean("is_renewed").default(false), // Para comentários renovados
-  originalCommentId: integer("original_comment_id"), // Referência ao comentário original
-  approvedBy: integer("approved_by").references(() => users.id), // Admin que aprovou
-  approvedAt: timestamp("approved_at"), // Data de aprovação
-  renewedAt: timestamp("renewed_at"), // Data de renovação
-  expiresAt: timestamp("expires_at"), // Data de expiração (opcional)
-  position: integer("position").default(0), // Para ordenação
-  isActive: boolean("is_active").default(true), // Status ativo/inativo
+  isRenewed: boolean("is_renewed").default(false),
+  originalCommentId: int("original_comment_id"),
+  approvedBy: int("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  renewedAt: timestamp("renewed_at"),
+  expiresAt: timestamp("expires_at"),
+  position: int("position").default(0),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const contacts = pgTable("contacts", {
-  id: serial("id").primaryKey(),
+export const contacts = mysqlTable("contacts", {
+  id: int("id").autoincrement().primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -101,9 +110,9 @@ export const contacts = pgTable("contacts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const invoices = pgTable("invoices", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+export const invoices = mysqlTable("invoices", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
   invoiceNumber: text("invoice_number").notNull(),
   companyName: text("company_name").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -112,9 +121,9 @@ export const invoices = pgTable("invoices", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const bills = pgTable("bills", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+export const bills = mysqlTable("bills", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
   billType: text("bill_type").notNull(),
   description: text("description").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -123,8 +132,8 @@ export const bills = pgTable("bills", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const features = pgTable("features", {
-  id: serial("id").primaryKey(),
+export const features = mysqlTable("features", {
+  id: int("id").autoincrement().primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   isNew: boolean("is_new").default(false),
@@ -132,8 +141,8 @@ export const features = pgTable("features", {
   isActive: boolean("is_active").default(true),
 });
 
-export const versionHistory = pgTable("version_history", {
-  id: serial("id").primaryKey(),
+export const versionHistory = mysqlTable("version_history", {
+  id: int("id").autoincrement().primaryKey(),
   content: text("content").notNull(),
   updatedBy: text("updated_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -141,18 +150,18 @@ export const versionHistory = pgTable("version_history", {
 });
 
 // Sistema de tickets de suporte
-export const supportTickets = pgTable("support_tickets", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  ticketNumber: text("ticket_number").notNull().unique(), // PROF-2025-001
+export const supportTickets = mysqlTable("support_tickets", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").references(() => users.id),
+  ticketNumber: varchar("ticket_number", { length: 50 }).notNull().unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  category: text("category").notNull().default("general"), // "technical", "billing", "general", "bug", "feature"
-  priority: text("priority").notNull().default("medium"), // "low", "medium", "high", "urgent"
-  status: text("status").notNull().default("open"), // "open", "in_progress", "waiting_customer", "resolved", "closed"
-  assignedTo: integer("assigned_to").references(() => users.id), // Admin responsável
-  attachments: text("attachments").array(), // URLs dos arquivos anexados
-  tags: text("tags").array(), // Tags para categorização
+  category: text("category").notNull().default("general"),
+  priority: text("priority").notNull().default("medium"),
+  status: text("status").notNull().default("open"),
+  assignedTo: int("assigned_to").references(() => users.id),
+  attachments: json("attachments").$type<string[]>(),
+  tags: json("tags").$type<string[]>(),
   customerEmail: text("customer_email").notNull(),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -163,21 +172,21 @@ export const supportTickets = pgTable("support_tickets", {
 });
 
 // Respostas e comentários dos tickets
-export const ticketReplies = pgTable("ticket_replies", {
-  id: serial("id").primaryKey(),
-  ticketId: integer("ticket_id").references(() => supportTickets.id),
-  userId: integer("user_id").references(() => users.id), // Quem respondeu
+export const ticketReplies = mysqlTable("ticket_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  ticketId: int("ticket_id").references(() => supportTickets.id),
+  userId: int("user_id").references(() => users.id),
   content: text("content").notNull(),
-  isInternal: boolean("is_internal").default(false), // Nota interna ou resposta ao cliente
-  attachments: text("attachments").array(),
+  isInternal: boolean("is_internal").default(false),
+  attachments: json("attachments").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Configuração de email do sistema
-export const emailConfig = pgTable("email_config", {
-  id: serial("id").primaryKey(),
+export const emailConfig = mysqlTable("email_config", {
+  id: int("id").autoincrement().primaryKey(),
   smtpHost: text("smtp_host").notNull(),
-  smtpPort: integer("smtp_port").notNull(),
+  smtpPort: int("smtp_port").notNull(),
   smtpSecure: boolean("smtp_secure").default(true),
   smtpUser: text("smtp_user").notNull(),
   smtpPassword: text("smtp_password").notNull(),
@@ -189,26 +198,26 @@ export const emailConfig = pgTable("email_config", {
 });
 
 // Configuração FTP para downloads
-export const ftpConfig = pgTable("ftp_config", {
-  id: serial("id").primaryKey(),
+export const ftpConfig = mysqlTable("ftp_config", {
+  id: int("id").autoincrement().primaryKey(),
   ftpHost: text("ftp_host").notNull(),
-  ftpPort: integer("ftp_port").default(21),
+  ftpPort: int("ftp_port").default(21),
   ftpUser: text("ftp_user").notNull(),
   ftpPassword: text("ftp_password").notNull(),
-  ftpSecure: boolean("ftp_secure").default(false), // FTPS
-  downloadPath: text("download_path").notNull(), // Caminho para o arquivo de download
-  fileName: text("file_name").notNull(), // Nome do arquivo
+  ftpSecure: boolean("ftp_secure").default(false),
+  downloadPath: text("download_path").notNull(),
+  fileName: text("file_name").notNull(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Security badges configuration
-export const securityBadgeConfigs = pgTable("security_badge_configs", {
-  id: serial("id").primaryKey(),
+export const securityBadgeConfigs = mysqlTable("security_badge_configs", {
+  id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
-  selectedBadges: jsonb("selected_badges").notNull().default('["verified-safe", "ssl-protected", "authentic-source"]'),
+  selectedBadges: json("selected_badges").notNull(),
   layout: varchar("layout", { length: 20 }).notNull().default("horizontal"),
   size: varchar("size", { length: 10 }).notNull().default("sm"),
   showTooltips: boolean("show_tooltips").notNull().default(true),
@@ -218,29 +227,29 @@ export const securityBadgeConfigs = pgTable("security_badge_configs", {
 });
 
 // Tabela para gerenciar convites por email
-export const emailInvitations = pgTable("email_invitations", {
-  id: serial("id").primaryKey(),
+export const emailInvitations = mysqlTable("email_invitations", {
+  id: int("id").autoincrement().primaryKey(),
   email: text("email").notNull(),
-  inviteToken: text("invite_token").notNull().unique(),
-  sentBy: integer("sent_by").references(() => users.id),
-  status: text("status").notNull().default("sent"), // sent, clicked, registered, expired
-  clickCount: integer("click_count").default(0),
+  inviteToken: varchar("invite_token", { length: 255 }).notNull().unique(),
+  sentBy: int("sent_by").references(() => users.id),
+  status: text("status").notNull().default("sent"),
+  clickCount: int("click_count").default(0),
   firstClickedAt: timestamp("first_clicked_at"),
   lastClickedAt: timestamp("last_clicked_at"),
   registeredAt: timestamp("registered_at"),
-  registeredUserId: integer("registered_user_id").references(() => users.id),
+  registeredUserId: int("registered_user_id").references(() => users.id),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const pageViews = pgTable("page_views", {
-  id: serial("id").primaryKey(),
+export const pageViews = mysqlTable("page_views", {
+  id: int("id").autoincrement().primaryKey(),
   path: text("path").notNull(),
   referrer: text("referrer"),
   userAgent: text("user_agent"),
   ipHash: text("ip_hash"),
-  userId: integer("user_id"),
+  userId: int("user_id"),
   sessionId: text("session_id"),
   country: text("country"),
   region: text("region"),
@@ -249,7 +258,6 @@ export const pageViews = pgTable("page_views", {
 });
 
 // Insert schemas
-// Email invitation schemas
 export const insertEmailInvitationSchema = createInsertSchema(emailInvitations).omit({
   id: true,
   createdAt: true,
@@ -267,7 +275,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   loginCount: true,
 });
 
-// User registration schema (for new user requests)
+// User registration schema
 export const registerUserSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
@@ -277,7 +285,7 @@ export const registerUserSchema = z.object({
   phone: z.string().optional(),
 });
 
-// User update schema (for admin management)
+// User update schema
 export const updateUserSchema = z.object({
   fullName: z.string().min(2, "Nome completo é obrigatório"),
   cnpj: z.string().optional(),
@@ -287,7 +295,7 @@ export const updateUserSchema = z.object({
   role: z.enum(["user", "admin"]),
 });
 
-// Password update schema (for admin password reset)
+// Password update schema
 export const updatePasswordSchema = z.object({
   newPassword: z.string().min(6, "Nova senha deve ter no mínimo 6 caracteres"),
   confirmPassword: z.string().min(6, "Confirmação de senha é obrigatória"),
@@ -339,7 +347,10 @@ export const insertVersionHistorySchema = createInsertSchema(versionHistory).omi
   updatedAt: true,
 });
 
-export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
+export const insertSupportTicketSchema = createInsertSchema(supportTickets, {
+  attachments: z.array(z.string()).optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(),
+}).omit({
   id: true,
   ticketNumber: true,
   createdAt: true,
@@ -347,7 +358,9 @@ export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit
   resolvedAt: true,
 });
 
-export const insertTicketReplySchema = createInsertSchema(ticketReplies).omit({
+export const insertTicketReplySchema = createInsertSchema(ticketReplies, {
+  attachments: z.array(z.string()).optional().nullable(),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -396,8 +409,6 @@ export const insertSecurityBadgeConfigSchema = createInsertSchema(securityBadgeC
   createdAt: true,
   updatedAt: true,
 });
-
-// Duplicate schemas removed - using the ones defined above
 
 // Types
 export type User = typeof users.$inferSelect;

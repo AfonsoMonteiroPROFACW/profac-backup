@@ -1,108 +1,105 @@
-# 🚀 Guia de Migração: Replit ➔ Render.com (PROFAC)
+# 🚀 Guia de Migração: Replit ➔ Render.com com MariaDB (PROFAC)
 
-Este documento descreve as etapas para hospedar o site **profac.com.br** no **Render** (plano gratuito), eliminando os custos de manutenção recorrentes do Replit.
-
----
-
-## 🛠️ O Que Foi Ajustado no Projeto
-
-1. **Desvinculação do Replit:**
-   - Remoção do banner do Replit (`replit-dev-banner.js`) do `client/index.html`.
-   - Remoção dos plugins restritos do Replit (`@replit/vite-plugin-runtime-error-modal` e `@replit/vite-plugin-cartographer`).
-   - Links automáticos nos e-mails (boas-vindas, recuperação de senha, downloads) atualizados para usar a URL de produção (`profac.com.br`) em vez de URLs do `replit.app`.
-
-2. **Compatibilidade de Produção no Render:**
-   - Porta dinâmica configurada via `process.env.PORT` no `server/index.ts` (obrigatória para o health check do Render passar).
-   - Remoção da flag `reusePort: true` que impedia inicialização em certos ambientes.
-   - Suporte universal no banco de dados (`server/db.ts`): compatível tanto com o **Neon PostgreSQL** quanto com o **Render PostgreSQL** nativo, Supabase ou PostgreSQL tradicional.
-   - Correção dos tipos TypeScript (`npm run check` e `npm run build` testados e aprovados com 100% de sucesso).
-   - Criação do arquivo [render.yaml](file:///c:/PROJETOS/RenderPROFACW/render.yaml) para deploy automático (Blueprint).
+Este documento descreve como colocar o site **profac.com.br** para rodar no **Render** (plano gratuito), conectando-se diretamente ao **MariaDB** do seu próprio domínio/hospedagem (cPanel / phpMyAdmin) para iniciar com o banco zerado e **sem nenhum custo de banco ou manutenção**.
 
 ---
 
-## 📋 Passo a Passo para o Deploy no Render
+## 🛠️ O Que Foi Adaptado no Projeto para MariaDB
 
-### Passo 1: Enviar os arquivos atualizados para o GitHub
+1. **Driver MariaDB/MySQL:**
+   - Adicionada a biblioteca `mysql2` com pool de conexões otimizado e charset `utf8mb4` (acentuação e emojis).
+   - Configurado o Drizzle ORM (`drizzle-orm/mysql2` e `drizzle-orm/mysql-core`).
 
-No terminal (neste diretório `c:\PROJETOS\RenderPROFACW`), rode os seguintes comandos para subir a versão pronta para o GitHub:
+2. **Esquema de Tabelas (`shared/schema.ts`):**
+   - Todas as 16 tabelas convertidas de PostgreSQL (`pgTable`) para MariaDB (`mysqlTable`).
+   - Campos únicos com tamanho correto para InnoDB (`varchar(255)`, `varchar(20)`, etc.).
+   - Arrays convertidos para campos `JSON` nativos.
 
-```bash
-git add .
-git commit -m "Migração Replit para Render: desvinculação, compatibilidade de porta e build otimizado"
-git push origin master
+3. **Camada de Dados (`server/storage.ts`):**
+   - Removido o uso de `.returning()` (específico do Postgres) e substituído pelo fluxo compatível com MariaDB (`insertId` e consultas automáticas).
+   - Consultas de estatísticas e gráficos ajustadas para usar a função `DATE_FORMAT()` do MariaDB.
+
+4. **Script SQL Criado:**
+   - Criado o arquivo [banco_mariadb.sql](file:///c:/PROJETOS/RenderPROFACW/banco_mariadb.sql) pronto para importar no **phpMyAdmin**.
+
+---
+
+## 📋 Passo 1: Criar o Banco e Tabelas no seu Domínio (phpMyAdmin)
+
+1. Acesse o **cPanel** (ou painel de controle) da sua hospedagem do seu domínio.
+2. Vá em **"Bancos de Dados MySQL"** (ou MariaDB):
+   - Crie um novo banco de dados (ex: `profac_db`).
+   - Crie um usuário para o banco (ex: `profac_user`) com uma senha forte.
+   - Associe o usuário ao banco com **Todos os Privilégios** (*ALL PRIVILEGES*).
+3. Abra o **phpMyAdmin**:
+   - Selecione o banco de dados que você acabou de criar.
+   - Clique na aba **"Importar"** (ou abra a aba **"SQL"**).
+   - Envie ou copie e cole o conteúdo do arquivo [banco_mariadb.sql](file:///c:/PROJETOS/RenderPROFACW/banco_mariadb.sql).
+   - Clique em **"Executar"** / **"Go"**.
+   - ✅ Todas as 16 tabelas serão criadas instantaneamente!
+
+---
+
+## 🌐 Passo 2: Liberar o Acesso Remoto no cPanel
+
+Como o Render roda na nuvem, ele precisa de permissão para falar com o MariaDB do seu domínio:
+
+1. No painel do seu cPanel, procure por **"MySQL Remoto"** (ou *Remote MySQL*).
+2. No campo **Host (ou IP)**, digite: `%`
+   *(O símbolo `%` é um coringa que autoriza conexões que tenham o usuário e senha corretos do banco).*
+3. Clique em **"Adicionar Host"**.
+
+---
+
+## 🔑 Passo 3: Montar a sua `DATABASE_URL`
+
+A URL de conexão para o MariaDB deve seguir este formato simples:
+
+```text
+mysql://USUARIO:SENHA@SEU_HOST:3306/NOME_DO_BANCO
+```
+
+### Exemplo real:
+Se no seu cPanel você tem:
+- **Host:** `mysql.profac.com.br` (ou o IP do seu servidor, ex: `162.241.123.45`)
+- **Porta:** `3306` (porta padrão do MySQL/MariaDB)
+- **Usuário:** `meudominio_profac`
+- **Senha:** `MinhaSenhaSegura123#`
+- **Banco:** `meudominio_profacdb`
+
+Sua `DATABASE_URL` será:
+```text
+mysql://meudominio_profac:MinhaSenhaSegura123#@mysql.profac.com.br:3306/meudominio_profacdb
 ```
 
 ---
 
-### Passo 2: Criar sua conta gratuita no Render
+## 🚀 Passo 4: Configurar no Render.com
 
-1. Acesse: **[https://render.com](https://render.com)**
-2. Clique em **"Sign Up"** (ou "Log In") e entre usando sua conta do **GitHub** (a mesma conta `AfonsoMonteiroPROFACW`).
+Na tela de criação do **Web Service** no Render (ou em **Settings ➔ Environment Variables**):
 
----
+| Campo | Valor |
+| :--- | :--- |
+| **Name** | `profac-site` |
+| **Runtime** | `Node` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm run start` |
+| **Instance Type** | `Free` ($0/mês) |
 
-### Passo 3: Criar o Serviço Web no Render
+### Em "Environment Variables", adicione:
+1. `NODE_ENV` ➔ `production`
+2. `APP_URL` ➔ `https://profac.com.br`
+3. `SESSION_SECRET` ➔ `profac-chave-secreta-2026-segura`
+4. `DATABASE_URL` ➔ *(Cole a URL do MariaDB que você montou no Passo 3)*
 
-1. No painel do Render, clique no botão azul **"New +"** no canto superior direito.
-2. Selecione **"Web Service"**.
-3. Escolha **"Build and deploy from a Git repository"** e clique em **Next**.
-4. Conecte o repositório **`AfonsoMonteiroPROFACW/profac-backup`**.
-5. Preencha as configurações:
-   - **Name:** `profac-site`
-   - **Region:** `Oregon (US West)` (ou qualquer região de sua preferência)
-   - **Branch:** `master` (ou `main`)
-   - **Root Directory:** *(deixe em branco)*
-   - **Runtime:** `Node`
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `npm run start`
-   - **Instance Type:** `Free` ($0/mês)
-
-6. Na seção **Environment Variables** (Variáveis de Ambiente), adicione:
-   - `NODE_ENV`: `production`
-   - `PORT`: `10000` *(o Render preenche automaticamente, mas é bom deixar)*
-   - `SESSION_SECRET`: `uma_frase_longa_e_secreta_qualquer` (ex: `profac-segredo-2026-auth-render`)
-   - `APP_URL`: `https://profac.com.br`
-   - `DATABASE_URL`: *Cole a URL de conexão do seu banco PostgreSQL* (veja o Passo 4 abaixo).
-
-7. Clique em **"Create Web Service"**.
-   - O Render iniciará a instalação e o build automaticamente!
+Clique em **"Create Web Service"** (ou "Save Changes").
 
 ---
 
-### Passo 4: O Banco de Dados PostgreSQL
+## 👥 Primeiro Acesso e Super Admin
 
-Você tem duas opções 100% gratuitas:
-
-#### Opção A (Recomendada se você já tem os dados no Neon):
-Se o seu banco do Replit já estiver no **Neon** (`neon.tech`), basta pegar a mesma string de conexão `DATABASE_URL` (formato `postgresql://usuario:senha@ep-xyz.neon.tech/neondb?sslmode=require`) e colar no campo `DATABASE_URL` do Render. Todos os usuários, downloads e dados continuarão exatamente como estavam!
-
-#### Opção B (Criar novo PostgreSQL grátis no Render):
-1. No Render, clique em **"New +"** ➔ **"PostgreSQL"**.
-2. Dê o nome `profac-db`, selecione plano `Free`.
-3. Após criar, copie a **"Internal Database URL"** (ou External) e use como a variável `DATABASE_URL` do seu Web Service.
-4. Para inicializar as tabelas, você pode rodar `npm run db:push` no console do Render.
-
----
-
-### Passo 5: Apontar o Domínio `profac.com.br` para o Render
-
-Para parar de pagar o Replit e usar seu domínio no Render:
-
-1. No painel do seu Web Service no Render, clique na aba **"Settings"** (à esquerda).
-2. Role até a seção **"Custom Domains"** e clique em **"Add Custom Domain"**.
-3. Digite: `profac.com.br` e também `www.profac.com.br`.
-4. O Render exibirá as instruções de DNS (geralmente um apontamento do tipo `A` e `CNAME`).
-5. Acesse o painel onde você registrou o domínio (por exemplo, **Registro.br**, Cloudflare ou seu provedor de DNS) e atualize os registros:
-   - Registro tipo **A** para `@` (ou `profac.com.br`) apontando para o IP que o Render indicar (ex: `216.24.57.1`).
-   - Registro tipo **CNAME** para `www` apontando para o seu endereço `.onrender.com`.
-6. O Render gera o certificado **SSL (HTTPS)** automaticamente de forma gratuita!
-
----
-
-### Passo 6: Cancelar a Manutenção/Assinatura do Replit
-
-Assim que o domínio `profac.com.br` estiver abrindo normalmente pelo Render:
-1. Acesse sua conta no **Replit**.
-2. Vá em **Billing / Subscriptions** ou nas configurações do Deployment.
-3. Desative o Deployment e cancele o plano pago do Replit.
-4. **Pronto!** O site estará funcionando com alta performance no Render sem a cobrança mensal.
+Como o banco começará com dados zerados:
+1. Acesse o site no ar e vá na tela de **Registro / Login** (`/auth` ou `/login`).
+2. Cadastre o primeiro usuário usando o e-mail:
+   `contato@profac.com.br`
+3. O sistema reconhece automaticamente o e-mail `contato@profac.com.br` como **Super Administrador** com acesso total a todas as telas do painel administrativo (`/admin`).

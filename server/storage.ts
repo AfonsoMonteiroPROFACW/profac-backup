@@ -193,7 +193,7 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(user: RegisterUser): Promise<User> {
     const hashedPassword = await bcrypt.hash(user.password, 10);
-    const [newUser] = await db
+    const [result] = await db
       .insert(users)
       .values({
         email: user.email,
@@ -201,12 +201,12 @@ export class DatabaseStorage implements IStorage {
         fullName: user.fullName,
         cnpj: user.cnpj,
         companyName: user.companyName,
-        phone: user.phone,
+        phone: user.phone || null,
         status: "pending",
         role: "user",
-      })
-      .returning();
-    return newUser;
+      });
+    const newUser = await this.getUser(Number(result.insertId));
+    return newUser!;
   }
 
   async authenticateUser(email: string, password: string): Promise<User | undefined> {
@@ -261,7 +261,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const [totalResult] = await countQuery;
-    const total = Number(totalResult.count);
+    const total = Number(totalResult?.count || 0);
     const data = await query.orderBy(desc(users.createdAt)).limit(limit).offset(offset);
     
     return {
@@ -273,41 +273,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: UpdateUser): Promise<User> {
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ ...userData, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+      .where(eq(users.id, id));
+    const updatedUser = await this.getUser(id);
+    return updatedUser!;
   }
 
   async updateUserPassword(id: number, password: string): Promise<User> {
-    // Check if password is already hashed (starts with $2b$)
     const isAlreadyHashed = password.startsWith('$2b$') || password.startsWith('$2a$');
     const finalPassword = isAlreadyHashed ? password : await bcrypt.hash(password, 10);
     
-    console.log(`🔐 Updating password for user ID ${id}`);
-    console.log(`📝 Password is${isAlreadyHashed ? ' already' : ' not'} hashed`);
-    
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ 
         password: finalPassword, 
         requirePasswordChange: false,
         updatedAt: new Date()
       })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+      .where(eq(users.id, id));
+    const updatedUser = await this.getUser(id);
+    return updatedUser!;
   }
 
   async updateUserStatus(id: number, status: "pending" | "approved" | "blocked"): Promise<User> {
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ status, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+      .where(eq(users.id, id));
+    const updatedUser = await this.getUser(id);
+    return updatedUser!;
   }
 
   async setRequirePasswordChange(id: number, require: boolean): Promise<void> {
@@ -317,7 +313,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id));
   }
 
-  // Generate temporary password for forgot password functionality
   generateTemporaryPassword(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
@@ -334,28 +329,24 @@ export class DatabaseStorage implements IStorage {
       return null;
     }
 
-    // Check if user account is approved
     if (user.status !== "approved") {
       console.log(`❌ Usuário ${email} não aprovado (status: ${user.status})`);
       return null;
     }
 
     const temporaryPassword = this.generateTemporaryPassword();
-    console.log(`🔑 Senha temporária gerada para ${email}: ${temporaryPassword}`);
-    
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
     
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ 
-        password: hashedPassword,
+        password: hashedPassword, 
         requirePasswordChange: true,
         updatedAt: new Date()
       })
-      .where(eq(users.id, user.id))
-      .returning();
+      .where(eq(users.id, user.id));
 
-    console.log(`✅ Senha atualizada no banco para usuário: ${updatedUser.email}`);
+    const updatedUser = (await this.getUser(user.id))!;
     return { user: updatedUser, temporaryPassword };
   }
 
@@ -379,7 +370,7 @@ export class DatabaseStorage implements IStorage {
   async getDownloadsPaginated(page: number = 1, limit: number = 20): Promise<{ data: Download[], total: number, page: number, totalPages: number }> {
     const offset = (page - 1) * limit;
     const [totalResult] = await db.select({ count: sql<number>`count(*)` }).from(downloads);
-    const total = Number(totalResult.count);
+    const total = Number(totalResult?.count || 0);
     const data = await db.select().from(downloads).orderBy(desc(downloads.releaseDate)).limit(limit).offset(offset);
     
     return { data, total, page, totalPages: Math.ceil(total / limit) };
@@ -395,20 +386,20 @@ export class DatabaseStorage implements IStorage {
       ...download,
       releaseDate: new Date()
     };
-    const [newDownload] = await db
+    const [result] = await db
       .insert(downloads)
-      .values(downloadWithDefaults)
-      .returning();
-    return newDownload;
+      .values(downloadWithDefaults);
+    const newDownload = await this.getDownload(Number(result.insertId));
+    return newDownload!;
   }
 
   async updateDownload(id: number, download: Partial<InsertDownload>): Promise<Download> {
-    const [updatedDownload] = await db
+    await db
       .update(downloads)
       .set(download)
-      .where(eq(downloads.id, id))
-      .returning();
-    return updatedDownload;
+      .where(eq(downloads.id, id));
+    const updated = await this.getDownload(id);
+    return updated!;
   }
 
   async deleteDownload(id: number): Promise<void> {
@@ -439,20 +430,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createComment(comment: InsertComment): Promise<Comment> {
-    const [newComment] = await db
+    const [result] = await db
       .insert(comments)
-      .values(comment)
-      .returning();
-    return newComment;
+      .values(comment);
+    const newComment = await this.getComment(Number(result.insertId));
+    return newComment!;
   }
 
   async updateComment(id: number, commentData: Partial<InsertComment>): Promise<Comment> {
-    const [updatedComment] = await db
+    await db
       .update(comments)
       .set({ ...commentData, updatedAt: new Date() })
-      .where(eq(comments.id, id))
-      .returning();
-    return updatedComment;
+      .where(eq(comments.id, id));
+    const updated = await this.getComment(id);
+    return updated!;
   }
 
   async deleteComment(id: number): Promise<void> {
@@ -460,7 +451,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async approveComment(id: number, approvedBy: number): Promise<Comment> {
-    const [approvedComment] = await db
+    await db
       .update(comments)
       .set({ 
         isApproved: true, 
@@ -468,31 +459,31 @@ export class DatabaseStorage implements IStorage {
         approvedAt: new Date(),
         updatedAt: new Date()
       })
-      .where(eq(comments.id, id))
-      .returning();
-    return approvedComment;
+      .where(eq(comments.id, id));
+    const approved = await this.getComment(id);
+    return approved!;
   }
 
   async renewComment(id: number, renewedBy: number): Promise<Comment> {
-    const [renewedComment] = await db
+    await db
       .update(comments)
       .set({ 
         isRenewed: true, 
         renewedAt: new Date(),
         updatedAt: new Date()
       })
-      .where(eq(comments.id, id))
-      .returning();
-    return renewedComment;
+      .where(eq(comments.id, id));
+    const renewed = await this.getComment(id);
+    return renewed!;
   }
 
   async updateCommentPosition(id: number, position: number): Promise<Comment> {
-    const [updatedComment] = await db
+    await db
       .update(comments)
       .set({ position, updatedAt: new Date() })
-      .where(eq(comments.id, id))
-      .returning();
-    return updatedComment;
+      .where(eq(comments.id, id));
+    const updated = await this.getComment(id);
+    return updated!;
   }
 
   async getCommentsByStatus(isApproved: boolean): Promise<Comment[]> {
@@ -515,10 +506,10 @@ export class DatabaseStorage implements IStorage {
 
   // Contact operations
   async createContact(contact: InsertContact): Promise<Contact> {
-    const [newContact] = await db
+    const [result] = await db
       .insert(contacts)
-      .values(contact)
-      .returning();
+      .values(contact);
+    const [newContact] = await db.select().from(contacts).where(eq(contacts.id, Number(result.insertId)));
     return newContact;
   }
 
@@ -528,10 +519,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
-    const [newInvoice] = await db
+    const [result] = await db
       .insert(invoices)
-      .values(invoice)
-      .returning();
+      .values(invoice);
+    const [newInvoice] = await db.select().from(invoices).where(eq(invoices.id, Number(result.insertId)));
     return newInvoice;
   }
 
@@ -541,10 +532,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBill(bill: InsertBill): Promise<Bill> {
-    const [newBill] = await db
+    const [result] = await db
       .insert(bills)
-      .values(bill)
-      .returning();
+      .values(bill);
+    const [newBill] = await db.select().from(bills).where(eq(bills.id, Number(result.insertId)));
     return newBill;
   }
 
@@ -559,10 +550,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFeature(feature: InsertFeature): Promise<Feature> {
-    const [newFeature] = await db
+    const [result] = await db
       .insert(features)
-      .values(feature)
-      .returning();
+      .values(feature);
+    const [newFeature] = await db.select().from(features).where(eq(features.id, Number(result.insertId)));
     return newFeature;
   }
 
@@ -572,22 +563,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateVersionHistory(content: string, updatedBy: string): Promise<VersionHistory> {
-    // Try to update existing record first
     const existing = await db.select().from(versionHistory).limit(1);
     
     if (existing.length > 0) {
-      const [updated] = await db
+      await db
         .update(versionHistory)
         .set({ content, updatedBy, updatedAt: new Date() })
-        .where(eq(versionHistory.id, existing[0].id))
-        .returning();
+        .where(eq(versionHistory.id, existing[0].id));
+      const [updated] = await db.select().from(versionHistory).where(eq(versionHistory.id, existing[0].id));
       return updated;
     } else {
-      // Create new record if none exists
-      const [newHistory] = await db
+      const [result] = await db
         .insert(versionHistory)
-        .values({ content, updatedBy })
-        .returning();
+        .values({ content, updatedBy });
+      const [newHistory] = await db.select().from(versionHistory).where(eq(versionHistory.id, Number(result.insertId)));
       return newHistory;
     }
   }
@@ -608,20 +597,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClient(client: InsertClient): Promise<Client> {
-    const [newClient] = await db
+    const [result] = await db
       .insert(clients)
-      .values(client)
-      .returning();
-    return newClient;
+      .values(client);
+    const newClient = await this.getClient(Number(result.insertId));
+    return newClient!;
   }
 
   async updateClient(id: number, clientData: Partial<InsertClient>): Promise<Client> {
-    const [updatedClient] = await db
+    await db
       .update(clients)
       .set({ ...clientData, updatedAt: new Date() })
-      .where(eq(clients.id, id))
-      .returning();
-    return updatedClient;
+      .where(eq(clients.id, id));
+    const updated = await this.getClient(id);
+    return updated!;
   }
 
   async deleteClient(id: number): Promise<void> {
@@ -666,7 +655,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const [totalResult] = await countQuery;
-    const total = Number(totalResult.count);
+    const total = Number(totalResult?.count || 0);
     const data = await query.orderBy(desc(supportTickets.createdAt)).limit(limit).offset(offset);
     
     return { data, total, page, totalPages: Math.ceil(total / limit) };
@@ -683,7 +672,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
-    // Generate unique ticket number
     const timestamp = Date.now().toString();
     const ticketNumber = `PROF-${new Date().getFullYear()}-${timestamp.slice(-6)}`;
     
@@ -691,20 +679,20 @@ export class DatabaseStorage implements IStorage {
       ...ticket,
       ticketNumber
     };
-    const [newTicket] = await db
+    const [result] = await db
       .insert(supportTickets)
-      .values(ticketWithDefaults)
-      .returning();
-    return newTicket;
+      .values(ticketWithDefaults as any);
+    const newTicket = await this.getTicket(Number(result.insertId));
+    return newTicket!;
   }
 
   async updateTicket(id: number, ticketData: Partial<InsertSupportTicket>): Promise<SupportTicket> {
-    const [updatedTicket] = await db
+    await db
       .update(supportTickets)
-      .set({ ...ticketData, updatedAt: new Date() })
-      .where(eq(supportTickets.id, id))
-      .returning();
-    return updatedTicket;
+      .set({ ...ticketData, updatedAt: new Date() } as any)
+      .where(eq(supportTickets.id, id));
+    const updated = await this.getTicket(id);
+    return updated!;
   }
 
   async deleteTicket(id: number): Promise<void> {
@@ -747,20 +735,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicketReply(reply: InsertTicketReply): Promise<TicketReply> {
-    const [newReply] = await db
+    const [result] = await db
       .insert(ticketReplies)
-      .values(reply)
-      .returning();
+      .values(reply as any);
+    const [newReply] = await db.select().from(ticketReplies).where(eq(ticketReplies.id, Number(result.insertId)));
     return newReply;
   }
 
   async updateTicketReply(id: number, replyData: Partial<InsertTicketReply>): Promise<TicketReply> {
-    const [updatedReply] = await db
+    await db
       .update(ticketReplies)
-      .set(replyData)
-      .where(eq(ticketReplies.id, id))
-      .returning();
-    return updatedReply;
+      .set(replyData as any)
+      .where(eq(ticketReplies.id, id));
+    const [updated] = await db.select().from(ticketReplies).where(eq(ticketReplies.id, id));
+    return updated;
   }
 
   async deleteTicketReply(id: number): Promise<void> {
@@ -774,20 +762,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
-    const [newConfig] = await db
+    const [result] = await db
       .insert(emailConfig)
-      .values(config)
-      .returning();
+      .values(config);
+    const [newConfig] = await db.select().from(emailConfig).where(eq(emailConfig.id, Number(result.insertId)));
     return newConfig;
   }
 
   async updateEmailConfig(id: number, config: Partial<InsertEmailConfig>): Promise<EmailConfig> {
-    const [updatedConfig] = await db
+    await db
       .update(emailConfig)
       .set({ ...config, updatedAt: new Date() })
-      .where(eq(emailConfig.id, id))
-      .returning();
-    return updatedConfig;
+      .where(eq(emailConfig.id, id));
+    const updated = await this.getEmailConfig();
+    return updated!;
   }
 
   // FTP Config operations
@@ -801,29 +789,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFtpConfig(config: InsertFtpConfig): Promise<FtpConfig> {
-    const [newConfig] = await db
+    const [result] = await db
       .insert(ftpConfig)
-      .values(config)
-      .returning();
+      .values(config);
+    const [newConfig] = await db.select().from(ftpConfig).where(eq(ftpConfig.id, Number(result.insertId)));
     return newConfig;
   }
 
   async updateFtpConfig(id: number, config: Partial<InsertFtpConfig>): Promise<FtpConfig> {
-    const [updatedConfig] = await db
+    await db
       .update(ftpConfig)
       .set({ ...config, updatedAt: new Date() })
-      .where(eq(ftpConfig.id, id))
-      .returning();
-    return updatedConfig;
+      .where(eq(ftpConfig.id, id));
+    const [updated] = await db.select().from(ftpConfig).where(eq(ftpConfig.id, id));
+    return updated;
   }
 
   // Email Invitation operations
   async createEmailInvitation(invitation: InsertEmailInvitation): Promise<EmailInvitation> {
-    const [newInvitation] = await db
+    const [result] = await db
       .insert(emailInvitations)
-      .values(invitation)  
-      .returning();
-    return newInvitation;
+      .values(invitation);
+    const [newInv] = await db.select().from(emailInvitations).where(eq(emailInvitations.id, Number(result.insertId)));
+    return newInv;
   }
 
   async getEmailInvitations(): Promise<EmailInvitation[]> {
@@ -902,7 +890,6 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
-    // Calculate rates
     if (stats.total > 0) {
       stats.clickRate = ((stats.clicked + stats.registered) / stats.total) * 100;
       stats.conversionRate = (stats.registered / stats.total) * 100;
@@ -933,8 +920,8 @@ export class DatabaseStorage implements IStorage {
       country: sql<string>`COALESCE(${pageViews.country}, 'Desconhecido')`,
       region: sql<string>`COALESCE(${pageViews.region}, 'Desconhecido')`,
       city: sql<string>`COALESCE(${pageViews.city}, 'Desconhecido')`,
-      views: sql<number>`count(*)::int`,
-      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})::int`,
+      views: sql<number>`count(*)`,
+      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})`,
     }).from(pageViews)
       .where(sql`${pageViews.createdAt} >= ${since}`)
       .groupBy(sql`COALESCE(${pageViews.country}, 'Desconhecido'), COALESCE(${pageViews.region}, 'Desconhecido'), COALESCE(${pageViews.city}, 'Desconhecido')`)
@@ -945,8 +932,8 @@ export class DatabaseStorage implements IStorage {
       country: r.country,
       region: r.region,
       city: r.city,
-      views: r.views,
-      uniqueVisitors: r.uniqueVisitors,
+      views: Number(r.views || 0),
+      uniqueVisitors: Number(r.uniqueVisitors || 0),
     }));
   }
 
@@ -955,26 +942,26 @@ export class DatabaseStorage implements IStorage {
     since.setDate(since.getDate() - days);
 
     const totalResult = await db.select({
-      totalViews: sql<number>`count(*)::int`,
-      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})::int`,
+      totalViews: sql<number>`count(*)`,
+      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})`,
     }).from(pageViews).where(sql`${pageViews.createdAt} >= ${since}`);
 
     const dailyResult = await db.select({
-      date: sql<string>`to_char(${pageViews.createdAt}, 'YYYY-MM-DD')`,
-      views: sql<number>`count(*)::int`,
-      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})::int`,
+      date: sql<string>`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m-%d')`,
+      views: sql<number>`count(*)`,
+      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})`,
     }).from(pageViews)
       .where(sql`${pageViews.createdAt} >= ${since}`)
-      .groupBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM-DD')`)
-      .orderBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM-DD')`);
+      .groupBy(sql`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m-%d')`)
+      .orderBy(sql`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m-%d')`);
 
     return {
-      totalViews: totalResult[0]?.totalViews || 0,
-      uniqueVisitors: totalResult[0]?.uniqueVisitors || 0,
+      totalViews: Number(totalResult[0]?.totalViews || 0),
+      uniqueVisitors: Number(totalResult[0]?.uniqueVisitors || 0),
       dailySeries: dailyResult.map((r: any) => ({
         date: r.date,
-        views: r.views,
-        uniqueVisitors: r.uniqueVisitors,
+        views: Number(r.views || 0),
+        uniqueVisitors: Number(r.uniqueVisitors || 0),
       })),
     };
   }
@@ -984,18 +971,18 @@ export class DatabaseStorage implements IStorage {
     since.setMonth(since.getMonth() - months);
 
     const result = await db.select({
-      month: sql<string>`to_char(${pageViews.createdAt}, 'YYYY-MM')`,
-      views: sql<number>`count(*)::int`,
-      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})::int`,
+      month: sql<string>`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m')`,
+      views: sql<number>`count(*)`,
+      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})`,
     }).from(pageViews)
       .where(sql`${pageViews.createdAt} >= ${since}`)
-      .groupBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM')`)
-      .orderBy(sql`to_char(${pageViews.createdAt}, 'YYYY-MM')`);
+      .groupBy(sql`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m')`)
+      .orderBy(sql`DATE_FORMAT(${pageViews.createdAt}, '%Y-%m')`);
 
     return result.map((r: any) => ({
       month: r.month,
-      views: r.views,
-      uniqueVisitors: r.uniqueVisitors,
+      views: Number(r.views || 0),
+      uniqueVisitors: Number(r.uniqueVisitors || 0),
     }));
   }
 
@@ -1005,14 +992,14 @@ export class DatabaseStorage implements IStorage {
 
     const result = await db.select({
       path: pageViews.path,
-      views: sql<number>`count(*)::int`,
+      views: sql<number>`count(*)`,
     }).from(pageViews)
       .where(sql`${pageViews.createdAt} >= ${since}`)
       .groupBy(pageViews.path)
       .orderBy(sql`count(*) desc`)
       .limit(limit);
 
-    return result.map((r: any) => ({ path: r.path, views: r.views }));
+    return result.map((r: any) => ({ path: r.path, views: Number(r.views || 0) }));
   }
 
   async getAnalyticsToday(): Promise<{ views: number; uniqueVisitors: number }> {
@@ -1020,13 +1007,13 @@ export class DatabaseStorage implements IStorage {
     today.setHours(0, 0, 0, 0);
 
     const result = await db.select({
-      views: sql<number>`count(*)::int`,
-      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})::int`,
+      views: sql<number>`count(*)`,
+      uniqueVisitors: sql<number>`count(distinct ${pageViews.ipHash})`,
     }).from(pageViews).where(sql`${pageViews.createdAt} >= ${today}`);
 
     return {
-      views: result[0]?.views || 0,
-      uniqueVisitors: result[0]?.uniqueVisitors || 0,
+      views: Number(result[0]?.views || 0),
+      uniqueVisitors: Number(result[0]?.uniqueVisitors || 0),
     };
   }
 }
