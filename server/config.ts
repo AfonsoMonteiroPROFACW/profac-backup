@@ -18,7 +18,7 @@ export function getBaseUrl(): string {
   if (process.env.REPLIT_DOMAINS) {
     return `https://${process.env.REPLIT_DOMAINS}`;
   }
-  return process.env.NODE_ENV === "production" ? "https://profac.com.br" : "http://localhost:5000";
+  return process.env.NODE_ENV === "production" ? "https://www.profac.com.br" : "http://localhost:5000";
 }
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;

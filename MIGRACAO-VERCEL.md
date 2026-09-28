@@ -12,8 +12,9 @@ Este documento detalha o processo de migração completa da aplicação PROFAC:
 3. [Configuração do Banco de Dados MySQL](#3-configuração-do-banco-de-dados-mysql)
 4. [Deploy na Vercel (Passo a Passo)](#4-deploy-na-vercel-passo-a-passo)
 5. [Variáveis de Ambiente](#5-variáveis-de-ambiente)
-6. [Persistência de Sessões em Serverless](#6-persistência-de-sessões-em-serverless)
-7. [Dicas e Resolução de Problemas](#7-dicas-e-resolução-de-problemas)
+6. [Configuração do Domínio Personalizado (www.profac.com.br)](#6-configuração-do-domínio-personalizado-wwwprofaccombr)
+7. [Persistência de Sessões em Serverless](#7-persistência-de-sessões-em-serverless)
+8. [Dicas e Resolução de Problemas](#8-dicas-e-resolução-de-problemas)
 
 ---
 
@@ -90,7 +91,7 @@ Configure estas variáveis no painel da Vercel (**Project Settings ➔ Environme
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `mysql://usuario:senha@host:3306/banco?ssl={"rejectUnauthorized":true}` | URL de conexão completa do MySQL |
 | `SESSION_SECRET` | `sua-chave-secreta-super-forte-2026` | Chave para assinar cookies de sessão |
-| `APP_URL` | `https://seu-projeto.vercel.app` | URL pública da sua aplicação |
+| `APP_URL` | `https://www.profac.com.br` | URL pública oficial da sua aplicação em produção |
 | `NODE_ENV` | `production` | Ambiente de execução |
 | `SENDGRID_API_KEY` | `SG.xxxxxxxx` | Chave para envio de e-mails via SendGrid (opcional) |
 | `ADMIN_PASSWORD` | `senha-segura-admin` | Senha padrão inicial para o admin (se aplicável) |
@@ -99,7 +100,30 @@ Configure estas variáveis no painel da Vercel (**Project Settings ➔ Environme
 
 ---
 
-## 6. Persistência de Sessões em Serverless
+## 6. Configuração do Domínio Personalizado (www.profac.com.br)
+
+Para apontar o domínio oficial **`www.profac.com.br`** para a sua aplicação na Vercel:
+
+### Passo 1: Adicionar o Domínio no Painel da Vercel
+1. Acesse o projeto na Vercel.
+2. Vá em **Settings** ➔ **Domains**.
+3. No campo de entrada, digite: `www.profac.com.br` e clique em **Add**.
+4. A Vercel perguntará se deseja adicionar também o redirecionamento de `profac.com.br` ➔ `www.profac.com.br`. Escolha **Redirect to www.profac.com.br** (recomendado para unificar o tráfego e SEO).
+
+### Passo 2: Configurar o DNS (Registro.br ou seu provedor de DNS)
+No painel do seu gerenciador de DNS (por exemplo, no **Registro.br**, Cloudflare, etc.), adicione os seguintes apontamentos:
+
+| Tipo | Nome / Host | Destino / Valor | Finalidade |
+| :--- | :--- | :--- | :--- |
+| **CNAME** | `www` | `cname.vercel-dns.com` | Aponta o subdomínio principal `www.profac.com.br` |
+| **A** | `@` (raiz) | `76.76.21.21` | Aponta a raiz `profac.com.br` para redirecionamento da Vercel |
+
+> O certificado SSL (HTTPS) é emitido automaticamente pela Vercel assim que o DNS propagar (normalmente entre 5 e 30 minutos).
+
+
+---
+
+## 7. Persistência de Sessões em Serverless
 
 Em arquiteturas serverless (como a Vercel), cada requisição pode ser atendida por uma instância/lambda diferente. Para evitar perda de autenticação, o PROFAC utiliza o **`express-mysql-session`**, que salva as sessões diretamente na tabela `sessions` do seu banco MySQL.
 
@@ -107,7 +131,7 @@ Assim, quando o usuário faz login, a sessão fica acessível instantaneamente p
 
 ---
 
-## 7. Dicas e Resolução de Problemas
+## 8. Dicas e Resolução de Problemas
 
 - **Erro de Certificado SSL no MySQL:** O conector [`server/db.ts`](file:///c:/PROJETOS/RenderPROFACW/server/db.ts) já está pré-configurado com `{ rejectUnauthorized: false }` para ambientes de nuvem remota com SSL. Se precisar forçar SSL, adicione a variável `MYSQL_SSL=true`.
 - **Limite de Conexões:** Funções serverless escalam sob demanda. O conector foi ajustado para `connectionLimit: 3` quando executado na Vercel para não saturar o pool do MySQL.
